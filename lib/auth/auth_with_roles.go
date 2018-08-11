@@ -18,6 +18,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 
@@ -318,10 +319,42 @@ func (a *AuthWithRoles) UpsertNode(s services.Server) error {
 }
 
 func (a *AuthWithRoles) GetNodes(namespace string, opts ...services.MarshalOption) ([]services.Server, error) {
+	fmt.Printf("--> AuthWithRoles: GetNodes: user=%v, checker: %v\n", a.user, a.checker.RoleNames())
+
 	if err := a.action(namespace, services.KindNode, services.VerbList); err != nil {
 		return nil, trace.Wrap(err)
 	}
-	return a.authServer.GetNodes(namespace, opts...)
+
+	roles, err := services.FetchRoles(a.user.GetRoles(), a.authServer, a.user.GetTraits())
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	servers, err := a.authServer.GetNodes(namespace, opts...)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	start := time.Now()
+
+	result := map[string]services.Server{}
+	for _, server := range servers {
+		err := roles.CheckAccessToServer("rjones", server)
+		if err != nil {
+			continue
+		}
+
+		result[server.GetName()] = server
+	}
+
+	out := make([]services.Server, 0, len(result))
+	for _, v := range result {
+		out = append(out, v)
+	}
+
+	fmt.Printf("--> AuthWithRoles: GetNodes: %v.\n", time.Since(start))
+
+	return out, nil
 }
 
 func (a *AuthWithRoles) UpsertAuthServer(s services.Server) error {

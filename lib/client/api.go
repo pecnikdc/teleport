@@ -1156,8 +1156,8 @@ func (tc *TeleportClient) ListNodes(ctx context.Context) ([]services.Server, err
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-
 	defer proxyClient.Close()
+
 	return proxyClient.FindServersByLabels(ctx, tc.Namespace, tc.Labels)
 }
 

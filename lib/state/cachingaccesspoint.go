@@ -392,17 +392,22 @@ func nodeKey(namespace, name string) string {
 
 // GetNodes is a part of auth.AccessPoint implementation
 func (cs *CachingAuthClient) GetNodes(namespace string, opts ...services.MarshalOption) (nodes []services.Server, err error) {
+	fmt.Printf("--> CachingAuthClient: GetNodes\n")
+
 	cs.fetch(params{
 		key: nodesKey(namespace),
 		fetch: func() error {
+			fmt.Printf("--> CachingAuthClient: Fetching.\n")
 			nodes, err = cs.ap.GetNodes(namespace, opts...)
 			return err
 		},
 		useCache: func() error {
+			fmt.Printf("--> CachingAuthClient: Using cache.\n")
 			nodes, err = cs.presence.GetNodes(namespace, opts...)
 			return err
 		},
 		updateCache: func() (keys []string, cerr error) {
+			fmt.Printf("--> CachingAuthClient: Setting cache.\n")
 			if err := cs.presence.DeleteAllNodes(namespace); err != nil {
 				if !trace.IsNotFound(err) {
 					return nil, trace.Wrap(err)

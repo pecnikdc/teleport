@@ -29,6 +29,7 @@ import (
 	"github.com/gravitational/teleport/lib/utils"
 
 	"github.com/gravitational/trace"
+	"github.com/pborman/uuid"
 	. "gopkg.in/check.v1"
 )
 
@@ -1169,4 +1170,132 @@ func (s *RoleSuite) TestCheckAndSetDefaults(c *C) {
 		}
 	}
 
+}
+
+func BenchmarkCheckAccessToServer(b *testing.B) {
+	servers := make([]*ServerV2, 0, 4000)
+
+	for i := 0; i < 4000; i++ {
+		servers = append(servers, &ServerV2{
+			Kind:    KindNode,
+			Version: V2,
+			Metadata: Metadata{
+				Name:      uuid.NewUUID().String(),
+				Namespace: defaults.Namespace,
+			},
+			Spec: ServerSpecV2{
+				Addr:     "127.0.0.1:3022",
+				Hostname: uuid.NewUUID().String(),
+			},
+		})
+	}
+
+	roles := []*RoleV3{
+		&RoleV3{
+			Kind:    KindRole,
+			Version: V3,
+			Metadata: Metadata{
+				Name:      "admin",
+				Namespace: defaults.Namespace,
+			},
+			Spec: RoleSpecV3{
+				Allow: RoleConditions{
+					Logins: []string{"admin", "one", "two", "three", "four"},
+					NodeLabels: map[string]string{
+						"foo": "bar",
+					},
+				},
+			},
+		},
+		&RoleV3{
+			Kind:    KindRole,
+			Version: V3,
+			Metadata: Metadata{
+				Name:      "one",
+				Namespace: defaults.Namespace,
+			},
+			Spec: RoleSpecV3{
+				Allow: RoleConditions{
+					Logins: []string{"admin", "one", "two", "three", "four"},
+					NodeLabels: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+		},
+		&RoleV3{
+			Kind:    KindRole,
+			Version: V3,
+			Metadata: Metadata{
+				Name:      "two",
+				Namespace: defaults.Namespace,
+			},
+			Spec: RoleSpecV3{
+				Allow: RoleConditions{
+					Logins: []string{"admin", "one", "two", "three", "four"},
+					NodeLabels: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+		},
+		&RoleV3{
+			Kind:    KindRole,
+			Version: V3,
+			Metadata: Metadata{
+				Name:      "three",
+				Namespace: defaults.Namespace,
+			},
+			Spec: RoleSpecV3{
+				Allow: RoleConditions{
+					Logins: []string{"admin", "one", "two", "three", "four"},
+					NodeLabels: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+		},
+		&RoleV3{
+			Kind:    KindRole,
+			Version: V3,
+			Metadata: Metadata{
+				Name:      "four",
+				Namespace: defaults.Namespace,
+			},
+			Spec: RoleSpecV3{
+				Allow: RoleConditions{
+					Logins: []string{"admin", "one", "two", "three", "four"},
+					NodeLabels: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+		},
+	}
+
+	var set RoleSet
+	for _, role := range roles {
+		set = append(set, role)
+	}
+
+	b.ResetTimer()
+
+	lm := map[string]bool{}
+	for _, role := range set {
+		for _, login := range role.GetLogins(Allow) {
+			lm[login] = true
+		}
+	}
+	logins := make([]string, 0, len(lm))
+	for k, _ := range lm {
+		logins = append(logins, k)
+	}
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < 4000; i++ {
+			for _, login := range logins {
+				set.CheckAccessToServer(login, servers[i])
+			}
+		}
+	}
 }

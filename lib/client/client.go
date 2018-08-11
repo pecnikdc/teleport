@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -43,6 +44,8 @@ import (
 	"github.com/gravitational/trace"
 	log "github.com/sirupsen/logrus"
 )
+
+var _ = fmt.Printf
 
 // ProxyClient implements ssh client to a teleport proxy
 // It can provide list of nodes or connect to nodes
